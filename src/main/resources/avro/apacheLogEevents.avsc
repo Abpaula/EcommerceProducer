@@ -1,0 +1,14 @@
+{ "type": "record",
+  "namespace" : "loganalysis.avro",
+  "name": "ApacheLogEvents",
+  "fields": [
+     {"name": "ipv4", "type": "string"},
+     {"name": "clientId", "type": "string"},
+     {"name": "timestamp", "type": "string"},
+     {"name": "requestUri", "type": "string"},
+     {"name": "status", "type": "int"},
+     {"name": "contentSize", "type": "long"},
+     {"name": "referrer", "type": "string"},
+     {"name": "useragent", "type": "string"}
+   ]
+}
