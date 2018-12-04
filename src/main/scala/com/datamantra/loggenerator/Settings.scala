@@ -1,8 +1,8 @@
 package com.datamantra.loggenerator
 
-import com.datamantra.outputchannel.OutputChannel
 import com.datamantra.producer.ProducerSettings
 import com.typesafe.config.Config
+import org.apache.log4j.Logger
 
 import scala.collection.mutable.HashMap
 import scala.io.Source
@@ -11,6 +11,8 @@ import scala.io.Source
  * Created by kafka on 11/11/18.
  */
 class Settings(config: Config) {
+
+  val logger = Logger.getLogger(getClass.getName)
 
   val requestsFile = config.getString("requests")
   val referrersFile = config.getString("referrers")
@@ -29,7 +31,8 @@ class Settings(config: Config) {
         config.getString("kafka.acks"),
         config.getString("kafka.retries"),
         config.getString("kafka.topic"),
-        config.getString("kafka.schema.registry.url")
+        config.getString("kafka.schema.registry.url"),
+        config.getString("kafka.schema.file")
       )
 
   val ipA_by_ctry = Array.ofDim[Int](maxIpsPerCountry,noOfCountries)
@@ -54,7 +57,7 @@ class Settings(config: Config) {
 
 
   try {
-    println("Begin Intialization")
+    logger.info("Begin Intialization")
     var ctry_abbr: Array[String] = Array[String]("CH", "US", "IN", "JP", "BR", "DE", "RU", "ID", "GB", "FR", "NG", "MX", "KR", "IR", "TR", "IT", "PH", "VN", "ES", "PK")
     for (i <- 0 to noOfCountries - 1) {
       tot_ips_by_ctry(i) = 0
@@ -99,7 +102,8 @@ class Settings(config: Config) {
 
 
   def initRequests: Unit = {
-    println("Begin initRequest")
+
+    logger.info("Begin initRequest")
     var i = 0
     for (line <- Source.fromFile(requestsFile).getLines()) {
       requests(i) = line
@@ -107,26 +111,25 @@ class Settings(config: Config) {
     }
     n_requests = i
 
-    println("Lines read= " + n_requests);
+    logger.debug("Lines read= " + n_requests);
     for (i <- 0 to n_requests -1)
-      println("Requests line " + i + ": " + requests(i));
+      logger.info("Requests line " + i + ": " + requests(i));
 
-    println("End initRequest")
   }
 
 
   def initReferrers: Unit ={
     var i = 0
     for (line <- Source.fromFile(referrersFile).getLines()) {
-      println(line)
+      logger.debug(line)
       referrers(i) = line
       i += 1
     }
     n_referrers = i
 
-    println("Lines read= " + n_requests);
+    logger.debug("Lines read= " + n_requests);
     for (i <- 0 to n_requests -1)
-      println("Referrers line " + i + ": " + requests(i));
+      logger.debug("Referrers line " + i + ": " + requests(i));
 
   }
 
@@ -138,9 +141,9 @@ class Settings(config: Config) {
     }
     n_user_agents = i
 
-    println("Lines read= " + n_requests);
+    logger.debug("Lines read= " + n_requests);
     for (i <- 0 to n_requests -1)
-      println("User agents line " + i + ": " + requests(i));
+      logger.debug("User agents line " + i + ": " + requests(i));
 
   }
 

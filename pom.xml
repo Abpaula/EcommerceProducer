@@ -8,6 +8,7 @@
     <scala.tools.version>2.11</scala.tools.version>
     <scala.version>2.11.8</scala.version>
     <confluent.version>3.3.1</confluent.version>
+    <bijection.version>0.9.6</bijection.version>
   </properties>
 
   <repositories>
@@ -70,6 +71,11 @@
       <artifactId>algebird-core_${scala.tools.version}</artifactId>
       <version>0.12.0</version>
     </dependency>
+    <dependency>
+      <groupId>com.twitter</groupId>
+      <artifactId>bijection-avro_${scala.tools.version}</artifactId>
+      <version>${bijection.version}</version>
+    </dependency>
 
     <!-- https://mvnrepository.com/artifact/log4j/log4j -->
     <dependency>
@@ -126,25 +132,6 @@
                 <arg>-dependencyfile</arg>
                 <arg>${project.build.directory}/.scala_dependencies</arg>
               </args>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro-maven-plugin</artifactId>
-        <version>1.7.6</version>
-        <executions>
-          <execution>
-            <id>schemas</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>schema</goal>
-              <goal>protocol</goal>
-              <goal>idl-protocol</goal>
-            </goals>
-            <configuration>
-              <sourceDirectory>${project.basedir}/src/main/resources/avro</sourceDirectory>
             </configuration>
           </execution>
         </executions>

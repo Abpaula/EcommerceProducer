@@ -5,42 +5,94 @@ import java.util.Properties
 import com.datamantra.loggenerator.Settings
 import com.datamantra.model.ApacheAccessLogCombined
 import com.datamantra.outputchannel.OutputChannel
-import loganalysis.avro.ApacheLogEvents
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig, ProducerRecord}
+import com.twitter.bijection.Injection
+import com.twitter.bijection.avro.GenericAvroCodecs
+import io.confluent.kafka.schemaregistry.client.rest.RestService
+import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException
+import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
+import org.apache.log4j.Logger
+
+import scala.io.Source
+
 /**
  * Created by kafka on 12/11/18.
  */
 class KafkaChannel(settings: Settings) extends  OutputChannel{
 
 
-  val avroProps = new Properties()
-  avroProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, settings.producerSetting.bootstrapServer)
-  avroProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, settings.producerSetting.keySerializer)
-  avroProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, settings.producerSetting.valueSerializer)
-  avroProps.put("schema.registry.url", settings.producerSetting.schemaRegistryUrl)
+  val logger = Logger.getLogger(getClass.getName)
 
-  val avroProducer = new KafkaProducer[String, ApacheLogEvents](avroProps)
+  val producer = new KafkaProducer[String, Array[Byte]](getProperites());
+
+  val schema = getSchemaFromFile()
+
+  val recordInjection: Injection[GenericRecord, Array[Byte]] = GenericAvroCodecs.toBinary(schema)
+
+
+  def getProperites() = {
+    val props = new Properties();
+    props.put("bootstrap.servers", settings.producerSetting.bootstrapServer);
+    props.put("key.serializer", settings.producerSetting.keySerializer);
+    props.put("value.serializer", settings.producerSetting.valueSerializer);
+    props
+  }
+
+
+  def getSchemaFromFile() = {
+
+    val url = getClass.getResource(settings.producerSetting.schemaFile)
+    val parser = new Schema.Parser
+    parser.parse(Source.fromURL(url).mkString)
+
+  }
+
+
+  def registerSchema() = {
+    try {
+      val schemaRegistryURL: String = settings.producerSetting.schemaRegistryUrl
+      val restService: RestService = new RestService(schemaRegistryURL)
+      val subjectNameValue = settings.producerSetting.topic + "-value"
+      restService.registerSchema(schema.toString, subjectNameValue)
+    }
+    catch {
+      case e: RestClientException => {
+          logger.info("RestClientException" + e)
+      }
+    }
+  }
 
 
   def process(event: Object): Unit = {
 
-    val apacheRecord = event.asInstanceOf[ApacheAccessLogCombined]
+    publishAvroGenericRecord(event)
 
-    val apacheLogEvent = new ApacheLogEvents
+  }
+
+
+  def publishAvroGenericRecord(event: Object): Unit = {
+
+    val apacheRecord = event.asInstanceOf[ApacheAccessLogCombined]
     try {
-      apacheLogEvent.setIpv4(apacheRecord.ipAddress)
-      apacheLogEvent.setClientId(apacheRecord.clientId)
-      apacheLogEvent.setTimestamp(apacheRecord.dateTime)
-      apacheLogEvent.setRequestUri(apacheRecord.requestURI)
-      apacheLogEvent.setStatus(apacheRecord.responseCode)
-      apacheLogEvent.setContentSize(apacheRecord.contentSize)
-      apacheLogEvent.setReferrer(apacheRecord.referrer)
-      apacheLogEvent.setUseragent(apacheRecord.useragent)
-      val producerRecord = new ProducerRecord[String, ApacheLogEvents](settings.producerSetting.topic, apacheLogEvent)
-      avroProducer.send(producerRecord)
-      System.out.println("Complete")
-    }
-    catch {
+
+      val genericRecord = new GenericData.Record(schema);
+
+      genericRecord.put("ipv4", apacheRecord.ipAddress)
+      genericRecord.put("clientId", apacheRecord.clientId)
+      genericRecord.put("timestamp", apacheRecord.dateTime)
+      genericRecord.put("requestUri", apacheRecord.requestURI)
+      genericRecord.put("status", apacheRecord.responseCode)
+      genericRecord.put("contentSize", apacheRecord.contentSize)
+      genericRecord.put("referrer", apacheRecord.referrer)
+      genericRecord.put("useragent", apacheRecord.useragent)
+
+      val bytes = recordInjection.apply(genericRecord);
+
+      val producerRecord = new ProducerRecord[String, Array[Byte]](settings.producerSetting.topic, bytes)
+      producer.send(producerRecord)
+
+    } catch {
       case ex: Exception => {
         ex.printStackTrace(System.out)
       }
@@ -49,4 +101,29 @@ class KafkaChannel(settings: Settings) extends  OutputChannel{
     }
 
   }
+
+
+
+  def getSchema() = {
+
+    val schemaString = """{
+                         "fields": [
+                              {"name": "ipv4", "type": "string"},
+                              {"name": "clientId", "type": "string"},
+                              {"name": "timestamp", "type": "string"},
+                              {"name": "requestUri", "type": "string"},
+                              {"name": "status", "type": "int"},
+                              {"name": "contentSize", "type": "long"},
+                              {"name": "referrer", "type": "string"},
+                              {"name": "useragent", "type": "string"}
+                            ],
+        "name": "EcommerceLogEvents",
+        "type": "record"
+    }""""
+
+    schemaString
+  }
+
+
+
 }

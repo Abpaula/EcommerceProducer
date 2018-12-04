@@ -10,5 +10,6 @@ case class ProducerSettings(
   acks:String,
   retries:String,
   topic:String,
-  schemaRegistryUrl:String
+  schemaRegistryUrl:String,
+  schemaFile:String
 )
